@@ -1,0 +1,289 @@
+---
+title: "Course Project for Statistical Inference Course on Coursera.org"
+author: "Nan"
+date: "25 Jan 2015"
+output: html_document
+---
+
+#Overview
+In this work, we investigate the __sample mean__ and __sample variance__ from 
+the exponential distribution; and we compare their expectations from 
+the simultation with the __population mean__ and __population variance__, 
+respectively. 
+To further check the variability of the __sample mean__, we look into the variance of the __sample mean__ and 
+compare with the logical estimate from the Central Limit Theorem (CLT).
+
+#Simulations
+We choose the exponential distribution with the probability density function 
+$p(x) = \lambda \exp^{-\lambda x}$. In all the simulations, $\lambda = 0.2$. 
+
+In total, we run *num_simulations* simulations, in each of which there are 
+*num_samples* samples.
+
+```{r, simulation}
+set.seed(0)
+run_simulation <- function(num_simulations, num_samples, eval_option, lambda=0.2) {
+    sample_means = NULL
+    sample_variances = NULL
+    for (sim_idx in 1:num_simulations) {
+        sim_data = rexp(num_samples, rate = lambda)
+        sample_means = c(sample_means, mean(sim_data))
+        sample_variances = c(sample_variances, var(sim_data))
+    }
+    sample_means <- data.frame(mean=sample_means) 
+    sample_vars <- data.frame(var=sample_variances)
+    results <- NULL
+    if(eval_option=="mean")
+        results <- sample_means
+    if(eval_option=="var")
+        results <- sample_vars
+    return(results)
+}
+```
+
+```{r, multiplot_def, echo=FALSE}
+library(ggplot2)
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+# Reference: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+    require(grid)
+    
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+    
+    numPlots = length(plots)
+    
+    # If layout is NULL, then use 'cols' to determine layout
+    if (is.null(layout)) {
+        # Make the panel
+        # ncol: Number of columns of plots
+        # nrow: Number of rows needed, calculated from # of cols
+        layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                         ncol = cols, nrow = ceiling(numPlots/cols))
+    }
+    
+    if (numPlots==1) {
+        print(plots[[1]])
+        
+    } else {
+        # Set up the page
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        
+        # Make each plot, in the correct location
+        for (i in 1:numPlots) {
+            # Get the i,j matrix positions of the regions that contain this subplot
+            matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+            
+            print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                            layout.pos.col = matchidx$col))
+        }
+    }
+}
+
+
+```
+
+#Comparison between Sample Mean and Population Mean
+The population mean $\mu$ is $\frac{1}{\lambda}$, which can be calculated 
+analytically. According to the CLT, the expectation of the sample mean is equal
+to $\mu$; the variance of the sample mean is $\frac{\sigma^2}{n}$, where 
+$\sigma^2$ is the population variance and $n$ is the number of samples.
+
+Here we show the distribution of the __sample mean__. Note the red line denotes the 
+__population mean__. 
+
+```{r, plot_mean, echo=FALSE, warning=FALSE, message=FALSE, fig.width=9, fig.height=3}
+num_simulations <- 1000
+sample_means_1 <- run_simulation(num_simulations, 10, "mean")
+fig_mean_1 <- ggplot(sample_means_1, aes(x=mean)) + 
+    geom_histogram(aes(y=..density..), binwidth=0.2) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=5, size=1, color="red") +
+    xlim(0, 10) +
+    ggtitle("n=10") 
+sample_means_2 <- run_simulation(num_simulations, 20, "mean")
+fig_mean_2 <- ggplot(sample_means_2, aes(x=mean)) + 
+    geom_histogram(aes(y=..density..), binwidth=0.2) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=5, size=1, color="red") +
+    xlim(0, 10) +
+    ggtitle("n=20")
+sample_means_3 <- run_simulation(num_simulations, 40, "mean")
+fig_mean_3 <- ggplot(sample_means_3, aes(x=mean)) + 
+    geom_histogram(aes(y=..density..), binwidth=0.2) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=5, size=1, color="red") +
+    xlim(0, 10) +
+    ggtitle("n=40")
+multiplot(fig_mean_1, fig_mean_2, fig_mean_3, cols=3)
+```
+
+The comparison is further shown in the following table.
+
+n | expectated sample mean | population mean
+- | ---------------------- | ---------------
+10| `r mean(sample_means_1$mean)`| 5                
+20| `r mean(sample_means_2$mean)`| 5
+40| `r mean(sample_means_3$mean)`| 5
+
+> The results suggest that the expectation of the __sample mean__ is approaching 
+to __population mean__ when the number of samples increases.
+
+#Comparison between Sample Variance and Population variance
+The popluation variance $\sigma^2$ is $\frac{1}{\lambda^2}$. 
+
+We plot the distribution of the __sample variance__ in 
+black. For comparison, the __population mean__ is plotted in red line.
+
+```{r, plot_variance, echo=FALSE, warning=FALSE, message=FALSE, fig.width=9, fig.height=3}
+sample_vars_1 <- run_simulation(num_simulations, 10, "var")
+fig_var_1 <- ggplot(sample_vars_1, aes(x=var)) + 
+    geom_histogram(aes(y=..density..), binwidth=1) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=25, size=1, color="red") +
+    xlim(0,100)+
+    ggtitle("n=10") 
+sample_vars_2 <- run_simulation(num_simulations, 20, "var")
+fig_var_2 <- ggplot(sample_vars_2, aes(x=var)) + 
+    geom_histogram(aes(y=..density..), binwidth=1) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=25, size=1, color="red") +
+    xlim(0,100)+
+    ggtitle("n=20")
+sample_vars_3 <- run_simulation(num_simulations, 40, "var")
+fig_var_3 <- ggplot(sample_vars_3, aes(x=var)) + 
+    geom_histogram(aes(y=..density..), binwidth=1) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=25, size=1, color="red") +
+    xlim(0,100)+
+    ggtitle("n=40")
+multiplot(fig_var_1, fig_var_2, fig_var_3, cols=3)
+```
+
+The comparison is further shown in the following table.
+
+n | expectated sample variance | population variance
+- | ---------------------- | ---------------
+10 | `r mean(sample_vars_1$var)` | 25               
+20| `r mean(sample_vars_2$var)` | 25
+40| `r mean(sample_vars_3$var)` | 25
+
+> The results suggest that the expectation of the __sample variance__ is approaching
+to __population variance__ when the number of samples increases. Moreover, the 
+distributions are increasingly concerntrated. We also note that the distributions
+are not normal distributions and are skewed.
+
+# The Variance of Sample Mean
+According to CLT, the variance of the __sample mean__ is $\frac{\sigma^2}{n}$.
+We plot the distribution of the logical estimates of the variances, i.e.
+$\frac{sample variance}{n}$.
+
+```{r, plot_variance_mean, warning=FALSE, echo=FALSE, message=FALSE, fig.width=9, fig.height=3}
+sample_vars_1$var <- sample_vars_1$var / 10
+fig_var_1 <- ggplot(sample_vars_1, aes(x=var)) + 
+    geom_histogram(aes(y=..density..), binwidth=0.2) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=25/10, size=1, color="red") +
+    ggtitle("n=10") 
+sample_vars_2$var <- sample_vars_2$var / 20
+fig_var_2 <- ggplot(sample_vars_2, aes(x=var)) + 
+    geom_histogram(aes(y=..density..), binwidth=0.2) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=25/20, size=1, color="red") +
+    ggtitle("n=20")
+sample_vars_3$var <- sample_vars_3$var / 40
+fig_var_3 <- ggplot(sample_vars_3, aes(x=var)) + 
+    geom_histogram(aes(y=..density..), binwidth=0.2) +
+    geom_density(size=1, alpha=.2, fill="salmon") +
+    geom_vline(xintercept=25/40, size=1, color="red") +
+    ggtitle("n=40")
+multiplot(fig_var_1, fig_var_2, fig_var_3, cols=3)
+```
+
+The comparison is further shown in the following table.
+
+n | average of the logical estimates | variance of sample mean
+- | ---------------------- | ---------------
+10 | `r mean(sample_vars_1$var)` | 2.50               
+20| `r mean(sample_vars_2$var)` | 1.25
+50| `r mean(sample_vars_3$var)` | 0.625
+
+> The results suggest that logical estimate of the __sample mean__ is a reasonable
+estimate. The __sample mean__ become less variable, when the number of samples 
+increases, because and the difference between 
+this estimate and the estimand becomes increasingly
+smaller. As the distribution of the __sample variance__,
+these distributions are not normal distribution and are skewed.
+
+#Conclusion
+* We show that the distribution of __sample mean__ are approaching to a normal 
+distribution when the number of samples increases. Meanwhile, 
+    + the expectation of __sample mean__ is approaching to __population mean__;
+    + the __sample mean__ become less variable. 
+* The distribution of  __sample variance__ is not normal distributed and skewed. 
+But their expectation is approaching to the __population variance__.
+* These results are consistent with the CLT.
+
+#Appendix
+The function for plotting multiple figures in defined here.
+```{r, multiplot, eval=FALSE}
+library(ggplot2)
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+# Reference: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+    require(grid)
+    
+    # Make a list from the ... arguments and plotlist
+    plots <- c(list(...), plotlist)
+    
+    numPlots = length(plots)
+    
+    # If layout is NULL, then use 'cols' to determine layout
+    if (is.null(layout)) {
+        # Make the panel
+        # ncol: Number of columns of plots
+        # nrow: Number of rows needed, calculated from # of cols
+        layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                         ncol = cols, nrow = ceiling(numPlots/cols))
+    }
+    
+    if (numPlots==1) {
+        print(plots[[1]])
+        
+    } else {
+        # Set up the page
+        grid.newpage()
+        pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+        
+        # Make each plot, in the correct location
+        for (i in 1:numPlots) {
+            # Get the i,j matrix positions of the regions that contain this subplot
+            matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+            
+            print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                            layout.pos.col = matchidx$col))
+        }
+    }
+}
+
+
+```
